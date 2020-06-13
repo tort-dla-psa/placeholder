@@ -5,6 +5,7 @@
 #include "imgui/examples/imgui_impl_opengl3.h"
 #include "rwqueue/readerwriterqueue.h"
 #include <SDL.h>
+#include <sstream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -12,8 +13,43 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <optional>
 #include <GL/glew.h>
 #include "ragdoll.h"
+#include "gfx_funcs.h"
+#include "phys_obj.h"
+#include "phys_eng.h"
+
+void draw_polygon(ImDrawList* drawList, polygon pol,
+    bool draw_labels=false,
+    bool draw_norms=false)
+{
+    auto draw_lbl = [drawList](polygon::dot_t dot){
+        std::stringstream ss;
+        ss.precision(2);
+        ss<< std::fixed << dot.x << " " << dot.y;
+        auto str = ss.str();
+        drawList->AddText({dot.x, dot.y}, ImColor({250, 250, 250}), str.c_str(), NULL);
+    };
+    std::optional<std::vector<dot>> norms;
+    if(draw_norms){
+        norms = pol.normals();
+    }
+    for(size_t n = 0; n<pol.size(); n++){
+        auto beg = pol.at(n);
+        auto end = pol.at((n+1)%pol.size());
+        drawList->AddLine({beg.x, beg.y}, {end.x, end.y}, ImColor{255,255,255});
+        if(draw_labels)
+            draw_lbl(beg);
+        if(draw_norms){
+            auto mid = (beg+end)/2;
+            auto norm = norms->at(n);
+            //auto norm_draw = norm - mid;
+            drawList->AddLine({norm.x, norm.y}, {mid.x, mid.y}, ImColor{255,255,255});
+            drawList->AddCircle({norm.x, norm.y}, 3, ImColor{255,255,255});
+        }
+    }
+}
 
 int main(int, char**) {
     moodycamel::BlockingReaderWriterQueue<int> q;
@@ -91,17 +127,38 @@ int main(int, char**) {
     glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, &raw);
     glBindTexture(GL_TEXTURE_2D, 0);
-    bool iter_incr = true;
+    bool draw_labels = false;
+    bool draw_norms = false;
 
     ImVec2 drag_1, drag_2;
     bool drag_beg;
-    polygon pol;
-    pol.set_pos({0,0});
-    pol.add_vert({100,   0});
-    pol.add_vert({100, 100});
-    pol.add_vert({  0, 100});
-    pol.set_angle(0);
+    polygon pol, angle1, angle2, angle3, angle4;
+    float main_w = 100;
+    polygon::dot_t main_pos = {200, 200};
+    float sub_w = main_w/2;
+    pol.add_vert({     0,      0});
+    pol.add_vert({main_w,      0});
+    pol.add_vert({main_w, main_w});
+    pol.add_vert({     0, main_w});
+    angle1.add_vert({    0,     0});
+    angle1.add_vert({sub_w,     0});
+    angle1.add_vert({sub_w, sub_w});
+    angle1.add_vert({    0, sub_w});
+    angle2 = angle3 = angle4 = angle1;
+    gfx_func::move_ref(pol, main_pos);
+
+    phys_eng eng;
+
+    polygon pol1({{0,0}, {20,30}, {40, 35}, {30, 20}, {50, 0}});
+    phys_obj obj_1(std::move(pol1));
+
+    polygon pol2({{0,0}, {20,30}, {40, 50}, {30, 20}, {10, 0}});
+    phys_obj obj_2(std::move(pol2));
+    eng.move(obj_1, {400, 400});
+    eng.move(obj_2, {450, 400});
+    phys_obj* dragging_obj;
     while (!done) {
+        dragging_obj = nullptr;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
@@ -119,12 +176,25 @@ int main(int, char**) {
 
         ImGui::Begin("Parameters");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Checkbox("Draw verts labels", &draw_labels);
+        ImGui::Checkbox("Draw norms", &draw_norms);
         ImGui::End();
         if(ImGui::IsMouseClicked(0)){
             drag_1 = ImGui::GetMousePos();
+            if(obj_1.verts().contains({drag_1.x, drag_1.y})){
+                std::cout<<"contains 1\n";
+                dragging_obj = &obj_1;
+            }
+            if(obj_2.verts().contains({drag_1.x, drag_1.y})){
+                std::cout<<"contains 2\n";
+                dragging_obj = &obj_2;
+            }
+            if(!dragging_obj){
+                std::cout<<"no objs selected\n";
+            }
         }
-        if(ImGui::GetMouseDragDelta(0).x > .0f &&
-            ImGui::GetMouseDragDelta(0).y > .0f)
+        if(std::abs(ImGui::GetMouseDragDelta(0).x) > .0f &&
+            std::abs(ImGui::GetMouseDragDelta(0).y) > .0f)
         {
             drag_beg = true;
         }
@@ -133,37 +203,49 @@ int main(int, char**) {
         }
         if(ImGui::IsMouseReleased(0)){
             drag_2 = ImGui::GetMousePos();
-            if(drag_beg){
-            }
             drag_beg = false;
         }
 
         auto size = ImGui::GetIO().DisplaySize;
         int res;
+        /*
         if(q.try_dequeue(res)){
             do{
-                /*
                 glBindTexture(GL_TEXTURE_2D, id);
                 glTexSubImage2D(GL_TEXTURE_2D, 0, i.x, i.y,
                         i.w, i.h, GL_RGB, GL_UNSIGNED_BYTE,
                         i.pixels.data());
                 glBindTexture(GL_TEXTURE_2D, 0);
-                */
             }while(q.try_dequeue(res));
         }
+        */
+        gfx_func::rotate_ref(pol, 0.1, {250, 250}); //rotate around dot
+        gfx_func::move_ref(angle1, pol.at(0)-sub_w/2);
+        gfx_func::move_ref(angle2, pol.at(1)-sub_w/2);
+        gfx_func::move_ref(angle3, pol.at(2)-sub_w/2);
+        gfx_func::move_ref(angle4, pol.at(3)-sub_w/2);
+        gfx_func::rotate_ref(angle1, 0.1, pol.at(0)); 
+        gfx_func::rotate_ref(angle2, 0.1, pol.at(1)); 
+        gfx_func::rotate_ref(angle3, 0.1, pol.at(2)); 
+        gfx_func::rotate_ref(angle3, 0.1, pol.at(3)); 
+        
         drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
         if(drag_beg){
             auto str = [](double data){ return std::to_string(data).substr(0, 4); };
             drawList->AddLine(drag_1, drag_2, ImColor{255,255,255});
+            if(dragging_obj){
+                auto &ref = *dragging_obj;
+                eng.move(ref, {drag_2.x, drag_2.y});
+            }
         }
 
-        auto prev_it = pol.begin();
-        for(auto it = std::next(prev_it); it != pol.end(); it++){
-            auto beg = *prev_it;
-            auto end = *it;
-            drawList->AddLine({(float)beg.x, (float)beg.y}, {(float)end.x, (float)end.y}, ImColor{255,255,255});
-            prev_it = it;
-        }
+        draw_polygon(drawList,    pol, draw_labels, draw_norms);
+        draw_polygon(drawList, angle1, draw_labels, draw_norms);
+        draw_polygon(drawList, angle2, draw_labels, draw_norms);
+        draw_polygon(drawList, angle3, draw_labels, draw_norms);
+        draw_polygon(drawList, angle4, draw_labels, draw_norms);
+        draw_polygon(drawList,  obj_1.verts(), draw_labels, draw_norms);
+        draw_polygon(drawList,  obj_2.verts(), draw_labels, draw_norms);
         // Rendering
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);

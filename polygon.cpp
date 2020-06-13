@@ -1,41 +1,117 @@
 #include "polygon.h"
+#include "gfx_funcs.h"
 #include <algorithm>
-polygon::polygon(const polygon::verts_t &verts)
+#include <limits>
+
+using dot_t = polygon::dot_t;
+using verts_t = polygon::verts_t;
+using fp_t = polygon::fp_t;
+
+polygon::polygon(const verts_t &verts)
     :m_verts(verts)
 {}
 
-const polygon::dot_t& polygon::pos()const
-{ return this->m_pos; }
+polygon::polygon(verts_t &&verts)
+    :m_verts(std::move(verts))
+{}
 
-void polygon::set_pos(const polygon::dot_t &pos)
-{ this->m_pos = pos; }
+polygon::polygon(const polygon &lhs)
+{ this->m_verts = lhs.m_verts; }
 
-const polygon::fp_t& polygon::angle()const
-{ return this->m_angle; }
+polygon::polygon(polygon &&lhs)
+{ this->m_verts = std::move(lhs.m_verts); }
 
-void polygon::set_angle(const polygon::fp_t &angle)
-{ this->m_angle = angle; }
 
-polygon::verts_t& polygon::verts(const polygon::verts_t &verts)
+bool polygon::operator==(const polygon &lhs)const
+{ return m_verts == lhs.m_verts; }
+
+polygon& polygon::operator=(const verts_t &verts){
+    this->m_verts = verts;
+    return *this;
+}
+polygon& polygon::operator=(verts_t &&verts){
+    this->m_verts = std::move(verts);
+    return *this;
+}
+polygon& polygon::operator=(const polygon &lhs){
+    this->m_verts = lhs.m_verts;
+    return *this;
+}
+polygon& polygon::operator=(polygon &&lhs){
+    this->m_verts = std::move(lhs.m_verts);
+    return *this;
+}
+
+bool polygon::contains(const dot_t &dot)const{
+    auto testx = dot.x;
+    auto testy = dot.y;
+    auto nvert = m_verts.size();
+    int wn = 0;    // the  winding number counter
+
+    // loop through all edges of the polygon
+    for (int i=0; i<nvert; i++) {       // edge from V[i] to  V[i+1]
+        auto vert = m_verts[i];
+        auto next = m_verts[(i+1)%nvert];
+        if (vert.y <= dot.y) {          // start y <= P.y
+            if (next.y > dot.y)         // an upward crossing
+                if (gfx_func::relation(dot, vert, next) > 0)    // P left of  edge
+                     ++wn;              // have  a valid up intersect
+        } else {                        // start y > P.y (no test needed)
+            if (next.y <= dot.y)        // a downward crossing
+                 if (gfx_func::relation(dot, vert, next) < 0)    // P right of  edge
+                     --wn;              // have  a valid down intersect
+        }
+    }
+    return wn!=0;
+}
+
+verts_t& polygon::verts(const verts_t &verts)
 { return this->m_verts; }
 
-const polygon::verts_t& polygon::verts(const polygon::verts_t &verts)const
+const verts_t& polygon::verts(const verts_t &verts)const
 { return this->m_verts; }
 
-polygon::dot_t& polygon::add_vert(const polygon::dot_t &d)
-{ return m_verts.emplace_back(d); }
+dot_t& polygon::add_vert(const dot_t &d){
+    return m_verts.emplace_back(d);
+}
 
-polygon::dot_t& polygon::add_vert(const polygon::dot_t &d, const size_t &pos)
-{ return *m_verts.emplace(std::next(m_verts.begin(), pos), d); }
+dot_t& polygon::add_vert(const dot_t &d, const size_t &pos){
+    return *m_verts.emplace(std::next(m_verts.begin(), pos), d);
+}
 
-polygon::dot_t& polygon::del_vert(const polygon::dot_t &d){
+dot_t& polygon::del_vert(const dot_t &d){
     auto it = std::find(m_verts.begin(), m_verts.end(), d);
     auto next_it = m_verts.erase(it);
     return *next_it;
 }
 
-polygon::verts_t::iterator polygon::begin()
+verts_t::iterator polygon::begin()
 { return m_verts.begin(); }
 
-polygon::verts_t::iterator polygon::end()
+verts_t::iterator polygon::end()
 { return m_verts.end(); }
+
+verts_t::const_iterator polygon::begin()const
+{ return m_verts.cbegin(); }
+
+verts_t::const_iterator polygon::end()const
+{ return m_verts.cend(); }
+
+const size_t polygon::size()const
+{ return m_verts.size(); }
+
+dot_t polygon::at(const size_t &pos)const
+{ return m_verts.at(pos); }
+
+std::vector<dot_t> polygon::normals()const{
+    std::vector<dot_t> result;
+    result.reserve(m_verts.size());
+    for(size_t i=0; i<m_verts.size(); i++){
+        auto cur = m_verts.at(i);
+        auto next = m_verts.at((i+1)%m_verts.size());
+        auto edge = std::move(next) - std::move(cur);
+        auto norm = dot{-edge.y, edge.x};
+        result.emplace_back(std::move(norm));
+    }
+    return result;
+}

@@ -12,23 +12,6 @@ public:\
     void set_##name(const type &name){ this->m_##name = name; }\
 }
 
-class phys_obj{
-public:
-    using dot_t = dot;
-    using verts_t = polygon;
-protected:
-    dot_t m_pos;
-    dot_t m_vel;
-    verts_t m_verts;
-public:
-    phys_obj(const verts_t &verts);
-    ~phys_obj();
-
-    const verts_t& verts()const;
-    verts_t& verts();
-    void set_verts(const verts_t &verts);
-};
-
 class ragdoll_handler{
 public:
     using queue = moodycamel::BlockingReaderWriterQueue<int>;
@@ -39,7 +22,6 @@ public:
     void run();
     void stop();
 };
-
 
 ragdoll_handler::ragdoll_handler(const queue &q){}
 void ragdoll_handler::run(){}

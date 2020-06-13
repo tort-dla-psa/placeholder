@@ -31,6 +31,8 @@ set(IMGUI_SRC
 
 add_executable(game main.cpp 
     polygon.cpp
+    phys_obj.cpp
+    phys_eng.cpp
     gfx_funcs.cpp
     ${IMGUI_SRC}
     )
