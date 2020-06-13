@@ -16,12 +16,10 @@ std::vector<std::tuple<size_t, dot::fp_t, dot::fp_t>> //id, x-diff, y-diff
 {
     std::vector<std::tuple<size_t, dot::fp_t, dot::fp_t>> result;
     auto& verts = obj.verts();
+    auto norms = verts.normals();
 
-    for(size_t i=0; i<verts.size(); i++){
-        auto vert = verts.at(i);
-        auto next = verts.at((i+1)%verts.size());
-        auto edge = next - vert;
-        auto norm = dot{-edge.y, edge.x};
+    for(size_t i=0; i<norms.size(); i++){
+        auto norm = norms.at(i);
         auto a_max_proj = -std::numeric_limits<dot::fp_t>::infinity();
         auto a_min_proj = std::numeric_limits<dot::fp_t>::infinity();
         for(auto& a_v:verts){
@@ -29,7 +27,6 @@ std::vector<std::tuple<size_t, dot::fp_t, dot::fp_t>> //id, x-diff, y-diff
 			if(proj < a_min_proj) a_max_proj = proj;
 			if(proj > a_max_proj) a_max_proj = proj;
         }
-        size_t counter = 0;
         for(auto &o:objs){
             auto b_max_proj = -std::numeric_limits<dot::fp_t>::infinity();
             auto b_min_proj = std::numeric_limits<dot::fp_t>::infinity();
@@ -39,10 +36,14 @@ std::vector<std::tuple<size_t, dot::fp_t, dot::fp_t>> //id, x-diff, y-diff
                 if(proj < b_min_proj) b_max_proj = proj;
                 if(proj > b_max_proj) b_max_proj = proj;
             }
-            if(a_max_proj < b_min_proj || a_min_proj > b_max_proj) {
-                result.emplace_back(counter, b_min_proj-a_max_proj, a_min_proj-b_max_proj); //ISSUE:wtf???
+            if(a_max_proj < b_min_proj){
+                auto diff = b_min_proj - a_max_proj;
+                auto x_dist = 0;
             }
-            counter++;
+            if(a_min_proj > b_max_proj) {
+                auto diff = b_max_proj - a_min_proj;
+                auto x_dist = 0;
+            }
         }
     }
     return result;

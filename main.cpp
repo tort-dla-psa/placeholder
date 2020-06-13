@@ -1,4 +1,5 @@
 #include <chrono>
+#include <ios>
 #include <iostream>
 #include "imgui/imgui.h"
 #include "imgui/examples/imgui_impl_sdl.h"
@@ -20,16 +21,17 @@
 #include "phys_obj.h"
 #include "phys_eng.h"
 
+ImColor fg_clr = ImColor({250, 250, 250});
+
 void draw_polygon(ImDrawList* drawList, polygon pol,
-    bool draw_labels=false,
-    bool draw_norms=false)
+    bool draw_labels=false, bool draw_norms=false)
 {
     auto draw_lbl = [drawList](polygon::dot_t dot){
         std::stringstream ss;
         ss.precision(2);
         ss<< std::fixed << dot.x << " " << dot.y;
         auto str = ss.str();
-        drawList->AddText({dot.x, dot.y}, ImColor({250, 250, 250}), str.c_str(), NULL);
+        drawList->AddText({dot.x, dot.y}, fg_clr, str.c_str(), NULL);
     };
     std::optional<std::vector<dot>> norms;
     if(draw_norms){
@@ -38,15 +40,15 @@ void draw_polygon(ImDrawList* drawList, polygon pol,
     for(size_t n = 0; n<pol.size(); n++){
         auto beg = pol.at(n);
         auto end = pol.at((n+1)%pol.size());
-        drawList->AddLine({beg.x, beg.y}, {end.x, end.y}, ImColor{255,255,255});
+        drawList->AddLine({beg.x, beg.y}, {end.x, end.y}, fg_clr);
         if(draw_labels)
             draw_lbl(beg);
         if(draw_norms){
             auto mid = (beg+end)/2;
             auto norm = norms->at(n);
-            //auto norm_draw = norm - mid;
-            drawList->AddLine({norm.x, norm.y}, {mid.x, mid.y}, ImColor{255,255,255});
-            drawList->AddCircle({norm.x, norm.y}, 3, ImColor{255,255,255});
+            norm += mid;
+            drawList->AddLine({norm.x, norm.y}, {mid.x, mid.y}, fg_clr);
+            drawList->AddCircle({norm.x, norm.y}, 3, fg_clr);
         }
     }
 }
@@ -130,35 +132,44 @@ int main(int, char**) {
     bool draw_labels = false;
     bool draw_norms = false;
 
-    ImVec2 drag_1, drag_2;
+    ImVec2 drag_1, drag_2, prev_drag_2;
     bool drag_beg;
     polygon pol, angle1, angle2, angle3, angle4;
     float main_w = 100;
     polygon::dot_t main_pos = {200, 200};
     float sub_w = main_w/2;
     pol.add_vert({     0,      0});
-    pol.add_vert({main_w,      0});
-    pol.add_vert({main_w, main_w});
     pol.add_vert({     0, main_w});
+    pol.add_vert({main_w, main_w});
+    pol.add_vert({main_w,      0});
     angle1.add_vert({    0,     0});
-    angle1.add_vert({sub_w,     0});
-    angle1.add_vert({sub_w, sub_w});
     angle1.add_vert({    0, sub_w});
+    angle1.add_vert({sub_w, sub_w});
+    angle1.add_vert({sub_w,     0});
     angle2 = angle3 = angle4 = angle1;
     gfx_func::move_ref(pol, main_pos);
 
     phys_eng eng;
+    std::vector<phys_obj> objs;
+    {
+        polygon pol({{0,0}, {20,30}, {40, 35}, {30, 20}, {50, 0}});
+        phys_obj obj(std::move(pol));
+        eng.move(obj, {400, 400});
+        objs.emplace_back(std::move(obj));
+    } {
+        polygon pol({{0,0}, {20,30}, {40, 50}, {30, 20}, {10, 0}});
+        phys_obj obj(std::move(pol));
+        eng.move(obj, {450, 400});
+        objs.emplace_back(std::move(obj));
+    } {
+        polygon pol({{0,0}, {10,20}, {10, 70}, {30, 50}, {35, 15}, {10, 0}});
+        phys_obj obj(std::move(pol));
+        eng.move(obj, {450, 400});
+        objs.emplace_back(std::move(obj));
+    }
 
-    polygon pol1({{0,0}, {20,30}, {40, 35}, {30, 20}, {50, 0}});
-    phys_obj obj_1(std::move(pol1));
-
-    polygon pol2({{0,0}, {20,30}, {40, 50}, {30, 20}, {10, 0}});
-    phys_obj obj_2(std::move(pol2));
-    eng.move(obj_1, {400, 400});
-    eng.move(obj_2, {450, 400});
     phys_obj* dragging_obj;
     while (!done) {
-        dragging_obj = nullptr;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
@@ -181,16 +192,11 @@ int main(int, char**) {
         ImGui::End();
         if(ImGui::IsMouseClicked(0)){
             drag_1 = ImGui::GetMousePos();
-            if(obj_1.verts().contains({drag_1.x, drag_1.y})){
-                std::cout<<"contains 1\n";
-                dragging_obj = &obj_1;
-            }
-            if(obj_2.verts().contains({drag_1.x, drag_1.y})){
-                std::cout<<"contains 2\n";
-                dragging_obj = &obj_2;
-            }
-            if(!dragging_obj){
-                std::cout<<"no objs selected\n";
+            for(auto& obj:objs){
+                if(obj.verts().contains({drag_1.x, drag_1.y})){
+                    dragging_obj = &obj;
+                    break;
+                }
             }
         }
         if(std::abs(ImGui::GetMouseDragDelta(0).x) > .0f &&
@@ -204,6 +210,7 @@ int main(int, char**) {
         if(ImGui::IsMouseReleased(0)){
             drag_2 = ImGui::GetMousePos();
             drag_beg = false;
+            dragging_obj = nullptr;
         }
 
         auto size = ImGui::GetIO().DisplaySize;
@@ -232,10 +239,22 @@ int main(int, char**) {
         drawList->AddImage((void*)(intptr_t)id, ImVec2(0,0), ImVec2(1920, 1080));
         if(drag_beg){
             auto str = [](double data){ return std::to_string(data).substr(0, 4); };
-            drawList->AddLine(drag_1, drag_2, ImColor{255,255,255});
             if(dragging_obj){
                 auto &ref = *dragging_obj;
                 eng.move(ref, {drag_2.x, drag_2.y});
+            }else{
+                drawList->AddLine(drag_1, drag_2, fg_clr);
+            }
+            if(draw_labels){
+                std::stringstream ss;
+                ss<< std::fixed;
+                ss.precision(2);
+                ss << drag_2.x << " " << drag_2.y;
+                drawList->AddText({drag_2.x, drag_2.y}, fg_clr, ss.str().c_str(), NULL);
+                ss = std::stringstream();
+                ss.flush();
+                ss << drag_1.x << " " << drag_1.y;
+                drawList->AddText({drag_1.x, drag_1.y}, fg_clr, ss.str().c_str(), NULL);
             }
         }
 
@@ -244,8 +263,10 @@ int main(int, char**) {
         draw_polygon(drawList, angle2, draw_labels, draw_norms);
         draw_polygon(drawList, angle3, draw_labels, draw_norms);
         draw_polygon(drawList, angle4, draw_labels, draw_norms);
-        draw_polygon(drawList,  obj_1.verts(), draw_labels, draw_norms);
-        draw_polygon(drawList,  obj_2.verts(), draw_labels, draw_norms);
+        for(auto& obj:objs){
+            draw_polygon(drawList,  obj.verts(), draw_labels, draw_norms);
+        }
+        prev_drag_2 = drag_2;
         // Rendering
         ImGui::Render();
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);

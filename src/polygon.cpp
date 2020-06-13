@@ -100,7 +100,10 @@ verts_t::const_iterator polygon::end()const
 const size_t polygon::size()const
 { return m_verts.size(); }
 
-dot_t polygon::at(const size_t &pos)const
+const dot_t& polygon::at(const size_t &pos)const
+{ return m_verts.at(pos); }
+
+dot_t& polygon::at(const size_t &pos)
 { return m_verts.at(pos); }
 
 std::vector<dot_t> polygon::normals()const{

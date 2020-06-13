@@ -16,6 +16,7 @@ find_package(OpenGL REQUIRED)
 include_directories (
     third-party/
     third-party/imgui
+    include/
     ${SDL2_INCLUDE_DIRS}
     ${GLEW_INCLUDE_DIRS}
     ${OPENGL_INCLUDE_DIRS}
@@ -29,13 +30,17 @@ set(IMGUI_SRC
     third-party/imgui/imgui.cpp
     )
 
+set(SRCS src/polygon.cpp
+    src/phys_obj.cpp
+    src/phys_eng.cpp
+    src/gfx_funcs.cpp
+    )
+
 add_executable(game main.cpp 
-    polygon.cpp
-    phys_obj.cpp
-    phys_eng.cpp
-    gfx_funcs.cpp
+    ${SRCS}
     ${IMGUI_SRC}
     )
+
 target_link_libraries (game ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} ${SDL2_LIBRARIES} pthread)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

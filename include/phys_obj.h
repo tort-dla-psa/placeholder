@@ -26,6 +26,8 @@ public:
     bool movable()const;
     void set_movable(bool movable=true);
     const verts_t& verts()const;
+    const dot_t& vert(const size_t &pos)const;
+    dot_t& vert(const size_t &pos);
     verts_t& verts();
     void set_verts(const verts_t &verts);
     dot_t mass_center()const;

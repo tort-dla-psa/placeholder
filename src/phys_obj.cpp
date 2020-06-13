@@ -1,5 +1,9 @@
 #include "phys_obj.h"
 
+using dot_t = phys_obj::dot_t;
+using verts_t = phys_obj::verts_t;
+using mass_t = phys_obj::mass_t;
+
 phys_obj::phys_obj(const verts_t &verts)
     :m_verts(verts)
 {
@@ -49,16 +53,22 @@ bool phys_obj::movable()const
 void phys_obj::set_movable(bool movable)
 { this->m_movable = movable; }
 
-const phys_obj::verts_t& phys_obj::verts()const
+const dot_t& phys_obj::vert(const size_t &pos)const
+{ return m_verts.at(pos); }
+
+dot_t& phys_obj::vert(const size_t &pos)
+{ return m_verts.at(pos); }
+
+const verts_t& phys_obj::verts()const
 { return this->m_verts; }
 
-phys_obj::verts_t& phys_obj::verts()
+verts_t& phys_obj::verts()
 { return this->m_verts; }
 
-void phys_obj::set_verts(const phys_obj::verts_t &verts)
+void phys_obj::set_verts(const verts_t &verts)
 { this->m_verts = verts; }
 
-phys_obj::dot_t phys_obj::mass_center()const{
+dot_t phys_obj::mass_center()const{
     dot_t result = {0, 0};
     for(const auto &d:m_verts){
         result.x += d.x/m_verts.size();
@@ -67,14 +77,14 @@ phys_obj::dot_t phys_obj::mass_center()const{
     return result;
 }
 
-const phys_obj::dot_t& phys_obj::vel()const
+const dot_t& phys_obj::vel()const
 { return this->m_vel; }
 
-void phys_obj::set_vel(const phys_obj::dot_t &vel)
+void phys_obj::set_vel(const dot_t &vel)
 { this->m_vel = vel; }
 
-const phys_obj::mass_t& phys_obj::mass()const
+const mass_t& phys_obj::mass()const
 { return this->m_mass; }
 
-void phys_obj::set_mass(const phys_obj::mass_t &mass)
+void phys_obj::set_mass(const mass_t &mass)
 { this->m_mass = mass; }

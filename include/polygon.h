@@ -28,7 +28,8 @@ public:
     verts_t::const_iterator begin()const;
     verts_t::const_iterator end()const;
     const size_t size()const;
-    dot_t at(const size_t &pos)const;
+    const dot_t& at(const size_t &pos)const;
+    dot_t& at(const size_t &pos);
     verts_t& verts(const verts_t &verts);
     const verts_t& verts(const verts_t &verts)const;
     dot_t& add_vert(const dot_t &d, const size_t &pos);
