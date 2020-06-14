@@ -118,3 +118,31 @@ std::vector<dot_t> polygon::normals()const{
     }
     return result;
 }
+
+fp_t polygon::signed_area()const{
+    fp_t result=0;
+    auto size = m_verts.size();
+    for(size_t i=0; i<size; i++){
+        auto pt = m_verts[i];
+        auto pt_next = m_verts[(i+1)%size];
+        result += (pt.x * pt_next.y) - (pt_next.x * pt.y);
+    }
+    result /= 2;
+    return result;
+}
+
+dot_t polygon::centroid()const{
+    dot_t result = {0, 0};
+    fp_t signed_area_x2 = 0;
+    auto size = m_verts.size();
+    for(size_t i=0; i<size; i++){
+        auto pt = m_verts[i];
+        auto pt_next = m_verts[(i+1)%size];
+        auto tmp = (pt.x * pt_next.y) - (pt_next.x * pt.y);
+        signed_area_x2 += tmp;
+        result.x += (pt.x + pt_next.x)*tmp;
+        result.y += (pt.y + pt_next.y)*tmp;
+    }
+    result /= signed_area_x2*3;
+    return result;
+}

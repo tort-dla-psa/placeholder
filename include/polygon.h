@@ -36,4 +36,6 @@ public:
     dot_t& add_vert(const dot_t &d);
     dot_t& del_vert(const dot_t &d);
     std::vector<dot_t> normals()const;
+    fp_t signed_area()const;
+    dot_t centroid()const;
 };

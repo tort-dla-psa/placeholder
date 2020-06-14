@@ -23,8 +23,9 @@
 
 ImColor fg_clr = ImColor({250, 250, 250});
 
-void draw_polygon(ImDrawList* drawList, polygon pol,
-    bool draw_labels=false, bool draw_norms=false)
+void draw_polygon(ImDrawList* drawList, const polygon &pol,
+    bool draw_labels=false, bool draw_norms=false,
+    bool draw_centroid=false)
 {
     auto draw_lbl = [drawList](polygon::dot_t dot){
         std::stringstream ss;
@@ -50,6 +51,10 @@ void draw_polygon(ImDrawList* drawList, polygon pol,
             drawList->AddLine({norm.x, norm.y}, {mid.x, mid.y}, fg_clr);
             drawList->AddCircle({norm.x, norm.y}, 3, fg_clr);
         }
+    }
+    if(draw_centroid){
+        auto centr = pol.centroid();
+        drawList->AddCircle({centr.x, centr.y}, 5, fg_clr);
     }
 }
 
@@ -131,6 +136,7 @@ int main(int, char**) {
     glBindTexture(GL_TEXTURE_2D, 0);
     bool draw_labels = false;
     bool draw_norms = false;
+    bool draw_centrs = false;
 
     ImVec2 drag_1, drag_2, prev_drag_2;
     bool drag_beg;
@@ -189,6 +195,7 @@ int main(int, char**) {
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::Checkbox("Draw verts labels", &draw_labels);
         ImGui::Checkbox("Draw norms", &draw_norms);
+        ImGui::Checkbox("Draw centroids", &draw_centrs);
         ImGui::End();
         if(ImGui::IsMouseClicked(0)){
             drag_1 = ImGui::GetMousePos();
@@ -258,13 +265,13 @@ int main(int, char**) {
             }
         }
 
-        draw_polygon(drawList,    pol, draw_labels, draw_norms);
-        draw_polygon(drawList, angle1, draw_labels, draw_norms);
-        draw_polygon(drawList, angle2, draw_labels, draw_norms);
-        draw_polygon(drawList, angle3, draw_labels, draw_norms);
-        draw_polygon(drawList, angle4, draw_labels, draw_norms);
+        draw_polygon(drawList,    pol, draw_labels, draw_norms, draw_centrs);
+        draw_polygon(drawList, angle1, draw_labels, draw_norms, draw_centrs);
+        draw_polygon(drawList, angle2, draw_labels, draw_norms, draw_centrs);
+        draw_polygon(drawList, angle3, draw_labels, draw_norms, draw_centrs);
+        draw_polygon(drawList, angle4, draw_labels, draw_norms, draw_centrs);
         for(auto& obj:objs){
-            draw_polygon(drawList,  obj.verts(), draw_labels, draw_norms);
+            draw_polygon(drawList,  obj.verts(), draw_labels, draw_norms, draw_centrs);
         }
         prev_drag_2 = drag_2;
         // Rendering
